@@ -129,7 +129,6 @@ const getDestinationMetrics = async (startDate, endDate) => {
       $lookup: {
         from: 'branches',
         localField: '_id',
-        reverse: false,
         foreignField: '_id',
         as: 'branchDetails',
       },
