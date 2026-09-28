@@ -1,0 +1,25 @@
+{
+  "name": "transport-company-computerization",
+  "version": "1.0.0",
+  "description": "Transport Company Computerization (TCC) - College Software Engineering Full-Stack Web Application",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "seed": "npm --prefix server run seed",
+    "build:client": "npm --prefix client run build",
+    "start:server": "npm --prefix server start",
+    "test:e2e": "node server/test-e2e.js"
+  },
+  "keywords": [
+    "transport",
+    "logistics",
+    "fleet-management",
+    "mern",
+    "vite",
+    "tailwind",
+    "express",
+    "mongodb"
+  ],
+  "author": "TCC Development Team",
+  "license": "MIT"
+}
