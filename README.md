@@ -35,10 +35,16 @@ Before running, ensure your laptop/PC has:
 ### OPTION 1: One-Click Automatic Start (Fastest)
 
 #### On Windows:
-Double-click `start-dev.bat` or run in terminal:
-```cmd
-start-dev.bat
-```
+Double-click `start-dev.bat` in File Explorer, or run in your terminal:
+* **PowerShell**:
+  ```powershell
+  .\start-dev.bat
+  # or: .\start-dev.ps1
+  ```
+* **Command Prompt (CMD)**:
+  ```cmd
+  start-dev.bat
+  ```
 *(This automatically installs dependencies if missing, copies `.env`, seeds the database, and launches both backend and frontend servers in separate windows!)*
 
 #### On macOS / Linux:
