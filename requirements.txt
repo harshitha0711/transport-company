@@ -1,0 +1,48 @@
+# ==============================================================================
+# TRANSPORT COMPANY COMPUTERIZATION (TCC) - SYSTEM & DEPENDENCY REQUIREMENTS
+# ==============================================================================
+# This project is built using modern JavaScript / Node.js & React stack.
+# Below are the runtime environments, database engines, and package dependencies.
+# ==============================================================================
+
+# --- RUNTIME PREREQUISITES ---
+Node.js >= 18.0.0 (Recommended: v20.x or v22.x)
+npm >= 9.0.0 (Recommended: v10.x)
+MongoDB Server >= 5.0 (Local Service on port 27017 or MongoDB Atlas URI)
+
+# --- BACKEND DEPENDENCIES (server/package.json) ---
+express==5.2.1
+mongoose==9.10.2
+cors==2.8.6
+dotenv==18.0.4
+jsonwebtoken==9.0.3
+bcryptjs==3.0.3
+morgan==1.12.1
+
+# --- BACKEND DEV DEPENDENCIES ---
+nodemon==3.1.14
+
+# --- FRONTEND DEPENDENCIES (client/package.json) ---
+react==19.2.8
+react-dom==19.2.8
+react-router-dom==7.18.4
+axios==1.20.0
+recharts==3.10.1
+lucide-react==1.48.0
+tailwindcss==4.3.3
+@tailwindcss/vite==4.3.3
+postcss==8.5.28
+autoprefixer==10.6.1
+react-is==19.2.8
+
+# --- FRONTEND DEV DEPENDENCIES ---
+vite==8.3.1
+@vitejs/plugin-react==6.1.1
+@types/react==19.2.18
+@types/react-dom==19.2.7
+oxlint==1.81.0
+
+# --- SUPPORTED OPERATING SYSTEMS ---
+Windows 10 / 11 (PowerShell & Command Prompt)
+macOS (Ventura, Sonoma, Sequoia)
+Linux (Ubuntu 20.04+, Debian, Fedora, Arch)
