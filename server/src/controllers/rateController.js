@@ -5,9 +5,14 @@ const Rate = require('../models/Rate');
 // @access  Private
 const getRates = async (req, res, next) => {
   try {
-    const rates = await Rate.find()
+    const query = {};
+    if (req.query.origin) query.origin = req.query.origin;
+    if (req.query.destination) query.destination = req.query.destination;
+
+    const rates = await Rate.find(query)
+      .populate('origin', 'name city code type')
       .populate('destination', 'name city code type')
-      .sort({ 'destination.city': 1 });
+      .sort({ 'origin.city': 1, 'destination.city': 1 });
 
     res.json({ success: true, count: rates.length, data: rates });
   } catch (error) {
@@ -15,20 +20,31 @@ const getRates = async (req, res, next) => {
   }
 };
 
-// @desc    Get rate for a specific destination
+// @desc    Get rate for a specific corridor or destination
 // @route   GET /api/rates/destination/:destinationId
 // @access  Private
 const getRateByDestination = async (req, res, next) => {
   try {
-    const rate = await Rate.findOne({ destination: req.params.destinationId }).populate(
-      'destination',
-      'name city code'
-    );
+    const destId = req.params.destinationId;
+    const originId = req.query.origin;
+
+    let rate = null;
+    if (originId) {
+      rate = await Rate.findOne({ origin: originId, destination: destId })
+        .populate('origin', 'name city code')
+        .populate('destination', 'name city code');
+    }
+
+    if (!rate) {
+      rate = await Rate.findOne({ destination: destId })
+        .populate('origin', 'name city code')
+        .populate('destination', 'name city code');
+    }
 
     if (!rate) {
       return res.status(404).json({
         success: false,
-        message: 'No rate tariff configured for this destination',
+        message: 'No rate tariff configured for this corridor / destination',
       });
     }
 
@@ -38,29 +54,37 @@ const getRateByDestination = async (req, res, next) => {
   }
 };
 
-// @desc    Create a destination freight rate
+// @desc    Create a corridor freight rate
 // @route   POST /api/rates
 // @access  Private (Manager/Admin)
 const createRate = async (req, res, next) => {
   try {
-    const { destination, ratePerCubicMeter, estimatedTransitHours, description } = req.body;
+    const { origin, destination, ratePerCubicMeter, estimatedTransitHours, description } = req.body;
 
-    const existing = await Rate.findOne({ destination });
+    const query = { destination };
+    if (origin) {
+      query.origin = origin;
+    }
+
+    const existing = await Rate.findOne(query);
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'A tariff rate is already configured for this destination. Update the existing rate instead.',
+        message: 'A tariff rate is already configured for this corridor. Update the existing rate instead.',
       });
     }
 
     const rate = await Rate.create({
+      origin: origin || null,
       destination,
       ratePerCubicMeter: Number(ratePerCubicMeter),
       estimatedTransitHours: Number(estimatedTransitHours) || 24,
       description,
     });
 
-    const populated = await Rate.findById(rate._id).populate('destination', 'name city code');
+    const populated = await Rate.findById(rate._id)
+      .populate('origin', 'name city code')
+      .populate('destination', 'name city code');
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
     next(error);
@@ -75,7 +99,9 @@ const updateRate = async (req, res, next) => {
     const rate = await Rate.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).populate('destination', 'name city code');
+    })
+      .populate('origin', 'name city code')
+      .populate('destination', 'name city code');
 
     if (!rate) {
       return res.status(404).json({ success: false, message: 'Rate tariff not found' });

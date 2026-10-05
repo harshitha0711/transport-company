@@ -91,6 +91,9 @@ export default function ConsignmentBillModal({ consignment, onClose }) {
               <span className="text-slate-400 font-medium">Route Corridor:</span>
               <p className="font-semibold text-slate-800 mt-0.5">
                 {consignment.sourceBranch?.city || 'Mumbai'} → {consignment.destinationBranch?.city || 'N/A'}
+                <span className="text-amber-800 font-mono text-[11px] ml-2 font-medium">
+                  (~{consignment.estimatedTransitHours || 24} hrs transit)
+                </span>
               </p>
             </div>
             <div>

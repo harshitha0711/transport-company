@@ -112,12 +112,15 @@ const createConsignment = async (req, res, next) => {
       });
     }
 
-    // Step 1: Look up destination rate from DB (strictly not hardcoded)
-    const rateDoc = await Rate.findOne({ destination: destinationBranch });
+    // Step 1: Look up origin -> destination corridor rate from DB (strictly not hardcoded)
+    let rateDoc = await Rate.findOne({ origin: sourceBranch, destination: destinationBranch });
+    if (!rateDoc) {
+      rateDoc = await Rate.findOne({ destination: destinationBranch });
+    }
     if (!rateDoc) {
       return res.status(400).json({
         success: false,
-        message: 'No transport freight rate is configured in the database for the selected destination. Please set a rate first.',
+        message: 'No transport freight rate is configured in the database for the selected route. Please set a rate first.',
       });
     }
 
@@ -143,6 +146,7 @@ const createConsignment = async (req, res, next) => {
       volume: parsedVolume,
       ratePerCubicMeter,
       charge,
+      estimatedTransitHours: rateDoc.estimatedTransitHours || 24,
       paymentStatus: paymentStatus || 'PAID',
       description: description || 'General Consignment Freight',
       status: 'WAITING_FOR_TRUCK',
@@ -193,16 +197,21 @@ const updateConsignment = async (req, res, next) => {
       });
     }
 
-    // If volume or destination changes, recalculate charge
+    // If volume, source, or destination changes, recalculate charge
     if (
       req.body.volume !== undefined ||
-      (req.body.destinationBranch &&
-        req.body.destinationBranch.toString() !== consignment.destinationBranch.toString())
+      req.body.sourceBranch !== undefined ||
+      req.body.destinationBranch !== undefined
     ) {
+      const srcId = req.body.sourceBranch || consignment.sourceBranch;
       const destId = req.body.destinationBranch || consignment.destinationBranch;
-      const rateDoc = await Rate.findOne({ destination: destId });
+      let rateDoc = await Rate.findOne({ origin: srcId, destination: destId });
+      if (!rateDoc) {
+        rateDoc = await Rate.findOne({ destination: destId });
+      }
       if (rateDoc) {
         req.body.ratePerCubicMeter = rateDoc.ratePerCubicMeter;
+        req.body.estimatedTransitHours = rateDoc.estimatedTransitHours || 24;
         const vol = req.body.volume !== undefined ? Number(req.body.volume) : consignment.volume;
         req.body.charge = Number((vol * rateDoc.ratePerCubicMeter).toFixed(2));
       }

@@ -46,6 +46,10 @@ const consignmentSchema = new mongoose.Schema(
       required: [true, 'Transport charge is required'],
       min: [0, 'Charge must be positive'],
     },
+    estimatedTransitHours: {
+      type: Number,
+      default: 24,
+    },
     status: {
       type: String,
       enum: ['RECEIVED', 'WAITING_FOR_TRUCK', 'ALLOCATED', 'DISPATCHED', 'DELIVERED'],

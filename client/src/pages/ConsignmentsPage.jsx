@@ -99,19 +99,29 @@ export default function ConsignmentsPage() {
     fetchConsignments();
   }, [search, selectedStatus, selectedDestination]);
 
-  // When destination branch changes, find rate from database rates list
+  // When origin or destination branch changes, find corridor-specific rate from database
   useEffect(() => {
-    if (formData.destinationBranch) {
-      const rateObj = rates.find(
+    if (formData.sourceBranch && formData.destinationBranch) {
+      const srcId = formData.sourceBranch;
+      const destId = formData.destinationBranch;
+
+      // 1. Look for exact Origin -> Destination corridor match
+      const corridorRate = rates.find(
         (r) =>
-          r.destination?._id === formData.destinationBranch ||
-          r.destination === formData.destinationBranch
+          (r.origin?._id === srcId || r.origin === srcId) &&
+          (r.destination?._id === destId || r.destination === destId)
       );
-      setMatchedRate(rateObj || null);
+
+      // 2. Fallback to destination-level rate if corridor not specifically configured
+      const fallbackRate = rates.find(
+        (r) => r.destination?._id === destId || r.destination === destId
+      );
+
+      setMatchedRate(corridorRate || fallbackRate || null);
     } else {
       setMatchedRate(null);
     }
-  }, [formData.destinationBranch, rates]);
+  }, [formData.sourceBranch, formData.destinationBranch, rates]);
 
   const estimatedCharge =
     matchedRate && formData.volume && Number(formData.volume) > 0
@@ -553,11 +563,19 @@ export default function ConsignmentsPage() {
               {matchedRate && (
                 <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs flex items-center justify-between">
                   <div>
-                    <span className="text-slate-500 block">
-                      Database Tariff ({matchedRate.destination?.city || 'Selected Destination'}):
-                    </span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-bold text-slate-800">
+                        {matchedRate.origin?.city || 'Origin'} → {matchedRate.destination?.city || 'Destination'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-semibold text-[10px] border border-amber-200">
+                        ⏱ {matchedRate.estimatedTransitHours || 24} hrs transit
+                      </span>
+                    </div>
                     <span className="font-bold text-indigo-700 text-sm">
                       ₹{matchedRate.ratePerCubicMeter} / m³
+                    </span>
+                    <span className="text-[11px] text-slate-500 ml-1.5 font-normal">
+                      ({matchedRate.description || 'Database Tariff'})
                     </span>
                   </div>
                   {estimatedCharge && (

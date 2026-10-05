@@ -2,11 +2,15 @@ const mongoose = require('mongoose');
 
 const rateSchema = new mongoose.Schema(
   {
+    origin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+    },
     destination: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Branch',
       required: [true, 'Destination branch is required'],
-      unique: true,
     },
     ratePerCubicMeter: {
       type: Number,

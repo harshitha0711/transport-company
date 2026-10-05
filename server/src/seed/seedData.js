@@ -78,40 +78,45 @@ const seed = async () => {
     const [mumbai, delhi, bangalore, chennai, kolkata] = branches;
     console.log(`[Seed] Created ${branches.length} branches.`);
 
-    // 2. Create Destination Rates (per cubic meter)
+    // 2. Create Origin-to-Destination Corridor Rates (per cubic meter & transit time)
+    try {
+      await Rate.collection.dropIndex('destination_1');
+    } catch (e) {
+      // index might not exist
+    }
+
     const rates = await Rate.insertMany([
-      {
-        destination: delhi._id,
-        ratePerCubicMeter: 48,
-        estimatedTransitHours: 32,
-        description: 'Western-Northern Trunk Corridor Express',
-      },
-      {
-        destination: bangalore._id,
-        ratePerCubicMeter: 42,
-        estimatedTransitHours: 22,
-        description: 'Western-Southern Highway Freight',
-      },
-      {
-        destination: chennai._id,
-        ratePerCubicMeter: 55,
-        estimatedTransitHours: 28,
-        description: 'Coastal Coastal Expressway Tariff',
-      },
-      {
-        destination: kolkata._id,
-        ratePerCubicMeter: 65,
-        estimatedTransitHours: 42,
-        description: 'Trans-India East-West Freight Corridor',
-      },
-      {
-        destination: mumbai._id,
-        ratePerCubicMeter: 40,
-        estimatedTransitHours: 18,
-        description: 'Head Office Regional Line-haul Tariff',
-      },
+      // From Mumbai (Western Gateway)
+      { origin: mumbai._id, destination: delhi._id, ratePerCubicMeter: 48, estimatedTransitHours: 32, description: 'Western-Northern Trunk Corridor Express (~1,400 km)' },
+      { origin: mumbai._id, destination: bangalore._id, ratePerCubicMeter: 42, estimatedTransitHours: 22, description: 'Western-Southern Highway Corridor (~1,000 km)' },
+      { origin: mumbai._id, destination: chennai._id, ratePerCubicMeter: 55, estimatedTransitHours: 28, description: 'Coastal-Transpeninsular Freight Expressway (~1,330 km)' },
+      { origin: mumbai._id, destination: kolkata._id, ratePerCubicMeter: 65, estimatedTransitHours: 42, description: 'Trans-India East-West Freight Corridor (~1,900 km)' },
+
+      // From Bengaluru (Southern Tech Hub) - Notice Bengaluru -> Chennai is only 7 hrs & ₹28!
+      { origin: bangalore._id, destination: chennai._id, ratePerCubicMeter: 28, estimatedTransitHours: 7, description: 'Bengaluru-Chennai Expressway Rapid Corridor (~350 km)' },
+      { origin: bangalore._id, destination: mumbai._id, ratePerCubicMeter: 42, estimatedTransitHours: 22, description: 'Southern-Western Return Trunk Route (~1,000 km)' },
+      { origin: bangalore._id, destination: delhi._id, ratePerCubicMeter: 68, estimatedTransitHours: 46, description: 'Trans-National South-North Express Freight (~2,150 km)' },
+      { origin: bangalore._id, destination: kolkata._id, ratePerCubicMeter: 62, estimatedTransitHours: 38, description: 'South-Eastern Coastal Industrial Corridor (~1,850 km)' },
+
+      // From Chennai (Southern Port Gateway)
+      { origin: chennai._id, destination: bangalore._id, ratePerCubicMeter: 28, estimatedTransitHours: 7, description: 'Chennai-Bengaluru Express Return Corridor (~350 km)' },
+      { origin: chennai._id, destination: mumbai._id, ratePerCubicMeter: 55, estimatedTransitHours: 28, description: 'Chennai Port to Mumbai Gateway Corridor (~1,330 km)' },
+      { origin: chennai._id, destination: delhi._id, ratePerCubicMeter: 70, estimatedTransitHours: 48, description: 'Grand South-North Port-to-Capital Trunk (~2,200 km)' },
+      { origin: chennai._id, destination: kolkata._id, ratePerCubicMeter: 58, estimatedTransitHours: 36, description: 'East Coast Highway Port Corridor (~1,650 km)' },
+
+      // From Delhi (Northern Freight Terminal)
+      { origin: delhi._id, destination: mumbai._id, ratePerCubicMeter: 48, estimatedTransitHours: 32, description: 'Northern-Western Return Trunk Line (~1,400 km)' },
+      { origin: delhi._id, destination: bangalore._id, ratePerCubicMeter: 68, estimatedTransitHours: 46, description: 'North-South Heavy Industrial Trunk (~2,150 km)' },
+      { origin: delhi._id, destination: chennai._id, ratePerCubicMeter: 70, estimatedTransitHours: 48, description: 'Northern Capital to Chennai Port Highway (~2,200 km)' },
+      { origin: delhi._id, destination: kolkata._id, ratePerCubicMeter: 52, estimatedTransitHours: 34, description: 'Grand Trunk Eastern Expressway (~1,500 km)' },
+
+      // From Kolkata (Eastern Gateway)
+      { origin: kolkata._id, destination: mumbai._id, ratePerCubicMeter: 65, estimatedTransitHours: 42, description: 'Eastern Gateway to Mumbai Trunk Corridor (~1,900 km)' },
+      { origin: kolkata._id, destination: delhi._id, ratePerCubicMeter: 52, estimatedTransitHours: 34, description: 'Eastern to Capital Grand Trunk Return (~1,500 km)' },
+      { origin: kolkata._id, destination: bangalore._id, ratePerCubicMeter: 62, estimatedTransitHours: 38, description: 'Eastern to Southern Tech Corridor (~1,850 km)' },
+      { origin: kolkata._id, destination: chennai._id, ratePerCubicMeter: 58, estimatedTransitHours: 36, description: 'Eastern Maritime to Chennai Port Corridor (~1,650 km)' },
     ]);
-    console.log(`[Seed] Created ${rates.length} destination rates in database.`);
+    console.log(`[Seed] Created ${rates.length} origin-to-destination corridor rates in database.`);
 
     // 3. Create Users (hashed passwords)
     const adminPassword = await User.hashPassword('Admin@123');
