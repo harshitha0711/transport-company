@@ -204,8 +204,14 @@ export default function DashboardPage() {
             </div>
           ) : (
             pendingCargo.map((grp) => {
-              const percentage = Math.min(100, ((grp.totalVolume / 500) * 100).toFixed(0));
               const isReady = grp.totalVolume >= 500;
+              const rawPct = (grp.totalVolume / 500) * 100;
+              const displayPct = isReady
+                ? '100%'
+                : rawPct % 1 === 0
+                ? `${rawPct}%`
+                : `${rawPct.toFixed(1)}%`;
+              const barWidth = Math.min(100, rawPct);
               return (
                 <div
                   key={grp.key}
@@ -240,14 +246,14 @@ export default function DashboardPage() {
                       <span className="font-semibold text-slate-700">
                         {grp.totalVolume} m³ / 500 m³
                       </span>
-                      <span className="font-bold text-indigo-600">{percentage}%</span>
+                      <span className="font-bold text-indigo-600">{displayPct}</span>
                     </div>
                     <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           isReady ? 'bg-amber-500' : 'bg-indigo-600'
                         }`}
-                        style={{ width: `${percentage}%` }}
+                        style={{ width: `${barWidth}%` }}
                       ></div>
                     </div>
                   </div>
