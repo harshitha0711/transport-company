@@ -31,6 +31,10 @@ const tripSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    availableTimeBeforeTrip: {
+      type: Date,
+      default: null,
+    },
     durationHours: {
       type: Number,
       default: 0,

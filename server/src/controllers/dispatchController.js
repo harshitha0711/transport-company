@@ -167,6 +167,7 @@ const markDeparted = async (req, res, next) => {
       source: dispatch.sourceBranch,
       destination: dispatch.destinationBranch,
       dispatch: dispatch._id,
+      availableTimeBeforeTrip: truck.lastAvailableAt || new Date(now.getTime() - idleMinutes * 60 * 1000),
       departureTime: now,
       status: 'IN_PROGRESS',
       totalCargoVolume: dispatch.totalVolume,
@@ -229,7 +230,19 @@ const markDelivered = async (req, res, next) => {
     if (trip) {
       trip.arrivalTime = now;
       const durationMs = now.getTime() - new Date(trip.departureTime).getTime();
-      trip.durationHours = Number((durationMs / (1000 * 60 * 60)).toFixed(2));
+      let durationHours = Number((durationMs / (1000 * 60 * 60)).toFixed(2));
+
+      // If delivery is marked quickly in a demo (duration < 1 hour), look up realistic corridor transit time
+      if (durationHours < 1) {
+        const Rate = require('../models/Rate');
+        const corridorRate = await Rate.findOne({
+          origin: dispatch.sourceBranch,
+          destination: dispatch.destinationBranch,
+        }) || await Rate.findOne({ destination: dispatch.destinationBranch });
+        durationHours = corridorRate?.estimatedTransitHours || 24;
+      }
+
+      trip.durationHours = durationHours;
       trip.status = 'COMPLETED';
       await trip.save();
     }

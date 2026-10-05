@@ -460,34 +460,45 @@ export default function TrucksPage() {
                     No completed trips recorded yet for this vehicle.
                   </div>
                 ) : (
-                  <div className="border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
                         <tr>
                           <th className="px-3 py-2">Departure</th>
-                          <th className="px-3 py-2">Route</th>
+                          <th className="px-3 py-2">Route Corridor</th>
                           <th className="px-3 py-2 text-right">Cargo (m³)</th>
-                          <th className="px-3 py-2 text-right">Transit Hours</th>
-                          <th className="px-3 py-2 text-right">Idle Before (m)</th>
+                          <th className="px-3 py-2 text-right">Transit Duration</th>
+                          <th className="px-3 py-2 text-right">Idle Time</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-800">
                         {selectedTruck.trips?.map((t) => (
-                          <tr key={t._id}>
-                            <td className="px-3 py-2">
-                              {new Date(t.departureTime).toLocaleDateString('en-IN')}
+                          <tr key={t._id} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 text-slate-600">
+                              {new Date(t.departureTime).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </td>
-                            <td className="px-3 py-2 font-medium">
-                              {t.source?.city} → {t.destination?.city}
+                            <td className="px-3 py-2 font-medium text-slate-900">
+                              {t.source?.city || 'Origin'} → {t.destination?.city || 'Dest'}
                             </td>
-                            <td className="px-3 py-2 text-right font-mono">
+                            <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-700">
                               {t.totalCargoVolume} m³
                             </td>
-                            <td className="px-3 py-2 text-right font-mono font-semibold">
-                              {t.durationHours || 0} hrs
+                            <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
+                              {t.durationHours && t.durationHours > 0
+                                ? `${t.durationHours} hrs`
+                                : t.status === 'IN_PROGRESS'
+                                ? 'In Transit'
+                                : 'Standard Corridor'}
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-500">
-                              {t.idleTimeBeforeTripMinutes || 0} mins
+                            <td className="px-3 py-2 text-right font-mono font-bold text-purple-700">
+                              {t.idleHours !== undefined
+                                ? `${t.idleHours} hrs`
+                                : `${Number(((t.idleTimeBeforeTripMinutes || 0) / 60).toFixed(1))} hrs`}
                             </td>
                           </tr>
                         ))}

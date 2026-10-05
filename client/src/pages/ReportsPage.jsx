@@ -9,6 +9,9 @@ import {
   Package,
   Printer,
   Filter,
+  Calculator,
+  Info,
+  ArrowRight,
 } from 'lucide-react';
 import {
   BarChart,
@@ -290,48 +293,198 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* TAB 2: Fleet Truck Usage & Idle Time */}
-          {activeTab === 'trucks' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-700">
-                  Vehicle Usage, Highway Hours & Idle Time Analysis
+          {/* TAB 2: Fleet Truck Usage & Idle Time (Merged Table) */}
+          {activeTab === 'trucks' && (() => {
+            // Build unified rows: all trips + standby trucks
+            const tripRows = (truckUsageReports?.trips || []).map((trip) => ({
+              key: `trip-${trip._id}`,
+              truckNumber: trip.truck?.truckNumber || 'Fleet Vehicle',
+              capacity: trip.truck?.capacity || '—',
+              currentBranch: trip.source?.city || 'Hub',
+              sourceCity: trip.source?.city || 'Origin',
+              destCity: trip.destination?.city || 'Destination',
+              availableTime: trip.availableTimeBeforeTrip,
+              departureTime: trip.departureTime,
+              idleHours:
+                trip.idleHours !== undefined
+                  ? trip.idleHours
+                  : Number(((trip.idleTimeBeforeTripMinutes || 0) / 60).toFixed(1)),
+              idleMinutes: trip.idleMinutes || trip.idleTimeBeforeTripMinutes || 0,
+              durationHours: trip.durationHours,
+              cargoVolume: trip.totalCargoVolume || 0,
+              tripsCount: 1,
+              isStandby: false,
+              status: trip.status,
+            }));
+
+            const dispatchedTruckNumbers = new Set(
+              (truckUsageReports?.trips || []).map((t) => t.truck?.truckNumber)
+            );
+
+            const standbyRows = (truckUsageReports?.truckUsage || [])
+              .filter((t) => t.totalTrips === 0 || !dispatchedTruckNumbers.has(t.truckNumber))
+              .map((t) => ({
+                key: `standby-${t.truckId}`,
+                truckNumber: t.truckNumber,
+                capacity: t.capacity,
+                currentBranch: t.currentBranch || 'Hub',
+                sourceCity: null,
+                destCity: null,
+                availableTime: null,
+                departureTime: null,
+                idleHours: 0,
+                idleMinutes: 0,
+                durationHours: 0,
+                cargoVolume: 0,
+                tripsCount: 0,
+                isStandby: true,
+                status: t.status || 'AVAILABLE',
+              }));
+
+            const allRows = [...tripRows, ...standbyRows];
+
+            return (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  {/* Table Header with Title & Summary Badge */}
+                  <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">
+                          Fleet Vehicle Utilization & Idle Time Log
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          {allRows.length} Vehicles & Dispatches
+                        </span>
+                      </div>
+                      <p className="text-slate-500 text-[11px] mt-0.5">
+                        Consolidated tracking of vehicle capacity, highway transit hours, and dock standby idle time
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-semibold bg-purple-50 text-purple-700 px-3 py-1.5 rounded-xl border border-purple-200">
+                        Avg Fleet Idle: {truckUsageReports?.avgFleetIdleHours || 0} hrs
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Unified Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3">Vehicle / Depot</th>
+                          <th className="px-4 py-3 text-right">Capacity</th>
+                          <th className="px-4 py-3">Route Corridor</th>
+                          <th className="px-4 py-3">Dock Available (T₁)</th>
+                          <th className="px-4 py-3">Departure (T₂)</th>
+                          <th className="px-4 py-3 text-right">Idle Time</th>
+                          <th className="px-4 py-3 text-right">Highway Transit</th>
+                          <th className="px-4 py-3 text-right">Cargo Hauled</th>
+                          <th className="px-4 py-3 text-center">Trips Run</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-800">
+                        {allRows.map((row) => (
+                          <tr key={row.key} className="hover:bg-slate-50">
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-bold text-indigo-600 block">
+                                {row.truckNumber}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {row.currentBranch}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-medium text-slate-700">
+                              {row.capacity} m³
+                            </td>
+                            <td className="px-4 py-3">
+                              {row.isStandby ? (
+                                <span className="text-slate-400 italic">Dock Standby</span>
+                              ) : (
+                                <div className="flex items-center gap-1.5 font-medium text-slate-900">
+                                  <span>{row.sourceCity}</span>
+                                  <ArrowRight className="w-3 h-3 text-slate-400" />
+                                  <span className="font-semibold text-indigo-700">{row.destCity}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {row.availableTime ? (
+                                new Date(row.availableTime).toLocaleString('en-IN', {
+                                  month: 'short',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              ) : (
+                                <span className="text-slate-400 italic">Available at Dock</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {row.departureTime ? (
+                                new Date(row.departureTime).toLocaleString('en-IN', {
+                                  month: 'short',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {row.isStandby ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-500">
+                                  Dock Standby (0 trips)
+                                </span>
+                              ) : (
+                                <span className="font-mono font-bold text-purple-700">
+                                  {row.idleHours} hrs
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {row.isStandby ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-500">
+                                  Dock Standby (0 trips)
+                                </span>
+                              ) : (
+                                <span className="font-mono font-bold text-slate-900">
+                                  {row.durationHours && row.durationHours > 0
+                                    ? `${row.durationHours} hrs`
+                                    : row.status === 'IN_PROGRESS'
+                                    ? 'In Transit'
+                                    : 'Corridor Transit'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">
+                              {row.cargoVolume > 0 ? (
+                                `${row.cargoVolume} m³`
+                              ) : (
+                                <span className="text-slate-400">0 m³</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {row.tripsCount > 0 ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700">
+                                  {row.tripsCount} trip
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-mono">0</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3">Truck Number</th>
-                      <th className="px-4 py-3 text-right">Capacity (m³)</th>
-                      <th className="px-4 py-3 text-right">Trips Run</th>
-                      <th className="px-4 py-3 text-right">Total Hours in Transit</th>
-                      <th className="px-4 py-3 text-right">Avg Idle Time Before Trip</th>
-                      <th className="px-4 py-3 text-right">Total Volume Hauled</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800">
-                    {truckUsageReports?.truckUsage?.map((t) => (
-                      <tr key={t.truckId} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-mono font-bold text-indigo-600">
-                          {t.truckNumber}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono">{t.capacity} m³</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">{t.totalTrips}</td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900">
-                          {t.totalDurationHours} hrs
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-purple-700 font-bold">
-                          {t.avgIdleHours} hrs
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-700">
-                          {t.totalVolumeCarried} m³
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* TAB 3: Consignment Waiting Time Log */}
           {activeTab === 'waiting' && (

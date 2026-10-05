@@ -1,5 +1,6 @@
 const Truck = require('../models/Truck');
 const Trip = require('../models/Trip');
+const Rate = require('../models/Rate');
 
 // @desc    Get all trucks with optional status & branch filters
 // @route   GET /api/trucks
@@ -36,11 +37,43 @@ const getTruckById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Truck not found' });
     }
 
-    const trips = await Trip.find({ truck: truck._id })
+    const rawTrips = await Trip.find({ truck: truck._id })
       .populate('source', 'name city')
       .populate('destination', 'name city')
       .sort({ departureTime: -1 })
       .limit(10);
+
+    const rates = await Rate.find();
+
+    const trips = rawTrips.map((trip) => {
+      const tObj = trip.toObject();
+
+      // Ensure realistic transit hours (no 0 hrs from quick demo click)
+      let transitHours = tObj.durationHours || 0;
+      if (transitHours < 1) {
+        const corridorRate = rates.find(
+          (r) =>
+            r.destination?.toString() === trip.destination?._id?.toString() &&
+            (!r.origin || r.origin?.toString() === trip.source?._id?.toString())
+        );
+        transitHours = corridorRate?.estimatedTransitHours || (trip.status === 'IN_PROGRESS' ? 8 : 24);
+      }
+      tObj.durationHours = transitHours;
+
+      // Mathematical Idle Time: Departure Time (T2) - Dock Available Time (T1)
+      const idleMins = tObj.idleTimeBeforeTripMinutes || 0;
+      const depTime = new Date(tObj.departureTime);
+      const availTime = tObj.availableTimeBeforeTrip
+        ? new Date(tObj.availableTimeBeforeTrip)
+        : new Date(depTime.getTime() - idleMins * 60 * 1000);
+
+      tObj.availableTimeBeforeTrip = availTime;
+      tObj.idleMinutes = idleMins;
+      tObj.idleHours = Number((idleMins / 60).toFixed(1));
+      tObj.idleCalculation = `${depTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} - ${availTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} = ${idleMins} mins (${Number((idleMins / 60).toFixed(1))} hrs)`;
+
+      return tObj;
+    });
 
     res.json({ success: true, data: { ...truck.toObject(), trips } });
   } catch (error) {

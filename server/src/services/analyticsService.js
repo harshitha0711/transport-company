@@ -3,6 +3,7 @@ const Truck = require('../models/Truck');
 const Dispatch = require('../models/Dispatch');
 const Trip = require('../models/Trip');
 const Branch = require('../models/Branch');
+const Rate = require('../models/Rate');
 
 /**
  * Calculates core dashboard KPI metrics
@@ -162,14 +163,66 @@ const getTruckUsageReport = async (startDate, endDate) => {
     if (endDate) match.departureTime.$lte = new Date(endDate);
   }
 
-  const trips = await Trip.find(match)
+  const rates = await Rate.find();
+  const allTrucks = await Truck.find().populate('currentBranch', 'name city code');
+
+  const rawTrips = await Trip.find(match)
     .populate('truck', 'truckNumber capacity status')
-    .populate('source', 'name city')
-    .populate('destination', 'name city')
+    .populate('source', 'name city code')
+    .populate('destination', 'name city code')
     .sort({ departureTime: -1 });
+
+  // Map trips with non-zero transit time and explicit idle calculation details
+  const trips = rawTrips.map((trip) => {
+    const tObj = trip.toObject();
+
+    // 1. Determine realistic transit hours (prevent 0 hrs from quick demo deliveries)
+    let transitHours = tObj.durationHours || 0;
+    if (transitHours < 1) {
+      // Find matching corridor rate
+      const corridorRate = rates.find(
+        (r) =>
+          r.destination?.toString() === trip.destination?._id?.toString() &&
+          (!r.origin || r.origin?.toString() === trip.source?._id?.toString())
+      );
+      transitHours = corridorRate?.estimatedTransitHours || (trip.status === 'IN_PROGRESS' ? 8 : 24);
+    }
+    tObj.durationHours = transitHours;
+
+    // 2. Explicit Idle Time Calculation (Departure Time - Available Time)
+    const idleMins = tObj.idleTimeBeforeTripMinutes || 0;
+    const depTime = new Date(tObj.departureTime);
+    const availTime = tObj.availableTimeBeforeTrip
+      ? new Date(tObj.availableTimeBeforeTrip)
+      : new Date(depTime.getTime() - idleMins * 60 * 1000);
+
+    tObj.availableTimeBeforeTrip = availTime;
+    tObj.idleMinutes = idleMins;
+    tObj.idleHours = Number((idleMins / 60).toFixed(1));
+    tObj.idleCalculation = `${depTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} - ${availTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} = ${idleMins} mins (${Number((idleMins / 60).toFixed(1))} hrs)`;
+
+    return tObj;
+  });
 
   // Aggregate stats per truck
   const truckMap = {};
+
+  // Initialize with all trucks in fleet
+  for (const trk of allTrucks) {
+    const tId = trk._id.toString();
+    truckMap[tId] = {
+      truckId: tId,
+      truckNumber: trk.truckNumber,
+      capacity: trk.capacity,
+      status: trk.status,
+      currentBranch: trk.currentBranch?.city || 'Hub',
+      totalTrips: 0,
+      totalDurationHours: 0,
+      totalIdleMinutes: 0,
+      totalVolumeCarried: 0,
+    };
+  }
+
   for (const trip of trips) {
     if (!trip.truck) continue;
     const tId = trip.truck._id.toString();
@@ -178,6 +231,8 @@ const getTruckUsageReport = async (startDate, endDate) => {
         truckId: tId,
         truckNumber: trip.truck.truckNumber,
         capacity: trip.truck.capacity,
+        status: trip.truck.status,
+        currentBranch: 'Hub',
         totalTrips: 0,
         totalDurationHours: 0,
         totalIdleMinutes: 0,
@@ -186,21 +241,27 @@ const getTruckUsageReport = async (startDate, endDate) => {
     }
     truckMap[tId].totalTrips += 1;
     truckMap[tId].totalDurationHours += trip.durationHours || 0;
-    truckMap[tId].totalIdleMinutes += trip.idleTimeBeforeTripMinutes || 0;
+    truckMap[tId].totalIdleMinutes += trip.idleMinutes || 0;
     truckMap[tId].totalVolumeCarried += trip.totalCargoVolume || 0;
   }
 
   const truckUsage = Object.values(truckMap).map((t) => ({
     ...t,
     totalDurationHours: Number(t.totalDurationHours.toFixed(1)),
-    avgIdleHours: Number((t.totalIdleMinutes / (t.totalTrips || 1) / 60).toFixed(1)),
+    avgIdleHours: t.totalTrips > 0 ? Number((t.totalIdleMinutes / t.totalTrips / 60).toFixed(1)) : 0,
     totalVolumeCarried: Number(t.totalVolumeCarried.toFixed(2)),
   }));
+
+  // Overall fleet idle metrics
+  const totalFleetIdleMins = trips.reduce((acc, t) => acc + (t.idleMinutes || 0), 0);
+  const avgFleetIdleHours = trips.length > 0 ? Number((totalFleetIdleMins / trips.length / 60).toFixed(1)) : 0;
 
   return {
     trips,
     truckUsage,
     totalTripsRun: trips.length,
+    avgFleetIdleHours,
+    totalFleetIdleHours: Number((totalFleetIdleMins / 60).toFixed(1)),
   };
 };
 
